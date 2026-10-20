@@ -189,10 +189,103 @@ class Nabd:
             self.nabio.pulse(Led.BOTTOM, (255, 165, 0))  # Orange
 
     async def sleep_setup(self):
+        await self._set_airplay_service("stop")
         self.nabio.set_leds(None, None, None, None, None)
         await self.nabio.move_ears(
             Nabd.SLEEP_EAR_POSITION, Nabd.SLEEP_EAR_POSITION
         )
+
+    async def _set_airplay_service(self, action):
+        """Stop AirPlay while asleep and restart it on wake if enabled."""
+        try:
+            process = await asyncio.create_subprocess_exec(
+                "systemctl",
+                "show",
+                "--property=LoadState",
+                "--value",
+                "shairport-sync",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), timeout=5
+            )
+        except FileNotFoundError:
+            logging.warning("systemctl unavailable; cannot %s AirPlay", action)
+            return
+        except asyncio.TimeoutError:
+            process.kill()
+            await process.wait()
+            logging.error("Timed out checking Shairport Sync service")
+            return
+        except OSError as error:
+            logging.error("Could not check Shairport Sync service: %s", error)
+            return
+
+        if process.returncode != 0:
+            detail = stderr.decode(errors="replace").strip()
+            logging.error(
+                "Could not check Shairport Sync service: %s",
+                detail or f"systemctl exited with {process.returncode}",
+            )
+            return
+        if stdout.decode().strip() != "loaded":
+            logging.debug("Shairport Sync is not installed")
+            return
+
+        if action == "start":
+            try:
+                enabled = await asyncio.create_subprocess_exec(
+                    "systemctl",
+                    "is-enabled",
+                    "--quiet",
+                    "shairport-sync",
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL,
+                )
+                await asyncio.wait_for(enabled.wait(), timeout=5)
+            except asyncio.TimeoutError:
+                enabled.kill()
+                await enabled.wait()
+                logging.error("Timed out checking whether AirPlay is enabled")
+                return
+            except OSError as error:
+                logging.error("Could not check whether AirPlay is enabled: %s", error)
+                return
+            if enabled.returncode != 0:
+                logging.info("AirPlay is disabled; not starting it on wake")
+                return
+
+        try:
+            process = await asyncio.create_subprocess_exec(
+                "systemctl",
+                action,
+                "shairport-sync",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), timeout=20
+            )
+        except asyncio.TimeoutError:
+            process.kill()
+            await process.wait()
+            logging.error("Timed out trying to %s Shairport Sync", action)
+            return
+        except OSError as error:
+            logging.error("Could not %s Shairport Sync: %s", action, error)
+            return
+
+        if process.returncode != 0:
+            detail = stderr.decode(errors="replace").strip()
+            logging.error(
+                "Could not %s Shairport Sync: %s",
+                action,
+                detail or f"systemctl exited with {process.returncode}",
+            )
+        else:
+            state = "stopped" if action == "stop" else "started"
+            logging.info("Shairport Sync %s successfully", state)
 
     async def idle_worker_loop(self):
         """
@@ -352,7 +445,10 @@ class Nabd:
         """
         async with self.idle_cv:
             if self.state != new_state:
+                old_state = self.state
                 self.state = new_state
+                if old_state == State.ASLEEP and new_state == State.IDLE:
+                    await self._set_airplay_service("start")
                 if new_state == State.IDLE:
                     await self._do_transition_to_idle()
                     self.idle_cv.notify()
