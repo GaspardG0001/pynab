@@ -247,6 +247,13 @@ sudo apt-get install --no-install-recommends -y alsa-utils xz-utils avahi-daemon
 cd ${inst_dir}/pynab
 sudo -u ${owner} /bin/bash install.sh ${install_env}
 
+if [ "${install_env}" == "ci-chroot" ]
+then
+    echo "Installing AirPlay receiver."
+    # Not fatal: Pynab must be usable even if AirPlay cannot be installed.
+    sudo /bin/bash ${inst_dir}/pynab/nabairplay/install-airplay.sh --chroot || echo "WARNING: AirPlay installation failed."
+fi
+
 echo "Cleaning up."
 # Cleanup caches.
 sudo rm -rf /root/.cache /root/.local /root/.wget-hsts

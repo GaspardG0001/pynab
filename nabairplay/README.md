@@ -18,6 +18,8 @@ Rename the receiver by editing `name` in `/etc/shairport-sync.conf`, then `sudo 
 Disable AirPlay only: `sudo systemctl disable --now shairport-sync`.
 Pynab upgrades (`upgrade.sh`) do not touch these files.
 
+Images built by GitHub Actions (`setup` script, `ci-chroot`) include AirPlay: `install-airplay.sh --chroot` installs Shairport Sync, assumes the Tag:Tag card (`AIRPLAY_CARD` to override) and enables the service for first boot. A failure there does not fail the image build.
+
 ## Diagnostics
 ```
 journalctl -u shairport-sync -f

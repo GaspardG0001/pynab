@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # Install AirPlay 1 reception (Shairport Sync) on an existing Pynab.
-# Usage: sudo bash nabairplay/install-airplay.sh
+# Usage: sudo bash nabairplay/install-airplay.sh [--chroot]
+# --chroot: image build (no hardware, no running systemd): assume the Tag:Tag
+# sound card (override with AIRPLAY_CARD) and only enable the service.
 set -euo pipefail
+
+chroot_mode=0
+if [ "${1:-}" = "--chroot" ]; then chroot_mode=1; fi
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "Run as root (sudo)." >&2
@@ -13,14 +18,18 @@ conf=/etc/shairport-sync.conf
 dropin_dir=/etc/systemd/system/shairport-sync.service.d
 
 echo "Checking environment"
-if ! systemctl cat nabd.service >/dev/null 2>&1; then
+if [ ${chroot_mode} -eq 0 ] && ! systemctl cat nabd.service >/dev/null 2>&1; then
   echo "Pynab (nabd.service) is not installed." >&2
   exit 1
 fi
 card=""
-for name in tagtagtagsound sndrpihifiberry; do
-  if grep -q "\[${name}" /proc/asound/cards; then card="${name}"; fi
-done
+if [ ${chroot_mode} -eq 1 ]; then
+  card="${AIRPLAY_CARD:-tagtagtagsound}"
+else
+  for name in tagtagtagsound sndrpihifiberry; do
+    if grep -q "\[${name}" /proc/asound/cards; then card="${name}"; fi
+  done
+fi
 if [ -z "${card}" ]; then
   echo "No supported sound card found in /proc/asound/cards." >&2
   exit 1
@@ -30,7 +39,7 @@ echo "Sound card: ${card}"
 echo "Installing Shairport Sync"
 if ! command -v shairport-sync >/dev/null 2>&1; then
   apt-get update
-  apt-get install -y shairport-sync
+  apt-get install --no-install-recommends -y shairport-sync
 fi
 if shairport-sync -V | grep -qi airplay2; then
   echo "Warning: AirPlay 2 build detected; v1 targets AirPlay 1 builds." >&2
@@ -48,8 +57,12 @@ sed -e "s|@ROOT_DIR@|${root_dir}|g" \
 chmod +x "${root_dir}"/nabairplay/*.sh
 
 echo "Enabling services"
-systemctl daemon-reload
 systemctl enable shairport-sync
+if [ ${chroot_mode} -eq 1 ]; then
+  echo "Chroot mode: AirPlay will start at first boot."
+  exit 0
+fi
+systemctl daemon-reload
 systemctl restart shairport-sync
 sleep 3
 if systemctl is-active --quiet shairport-sync; then
