@@ -86,6 +86,25 @@ class TestNabdBase(unittest.TestCase):
 
 
 class TestNabd(TestNabdBase):
+    def test_airplay_suspend_resume(self):
+        s = self.service_socket()
+        try:
+            s.readline()  # state packet
+            s.write(b'{"type":"airplay","state":"on","request_id":"a"}\r\n')
+            packet_j = json.loads(s.readline().decode("utf8"))
+            self.assertEqual(packet_j["status"], "ok")
+            self.assertTrue(self.nabio.sound.suspended)
+            s.write(b'{"type":"airplay","state":"bogus","request_id":"b"}\r\n')
+            packet_j = json.loads(s.readline().decode("utf8"))
+            self.assertEqual(packet_j["status"], "error")
+            self.assertTrue(self.nabio.sound.suspended)
+            s.write(b'{"type":"airplay","state":"off","request_id":"c"}\r\n')
+            packet_j = json.loads(s.readline().decode("utf8"))
+            self.assertEqual(packet_j["status"], "ok")
+            self.assertFalse(self.nabio.sound.suspended)
+        finally:
+            s.close()
+
     def test_state(self):
         s = self.service_socket()
         try:

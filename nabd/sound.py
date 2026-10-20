@@ -6,6 +6,24 @@ from .resources import Resources
 class Sound(object, metaclass=abc.ABCMeta):
     """Interface for sound"""
 
+    # While suspended (e.g. AirPlay session), the sound device must not be
+    # opened: playback requests are dropped, not queued nor replayed.
+    suspended = False
+
+    async def suspend(self):
+        """
+        Stop any playback/recording and refuse new ones until resume().
+        """
+        self.suspended = True
+        await self.stop_recording_if_any()
+        await self.stop_playing()
+
+    async def resume(self):
+        self.suspended = False
+
+    async def stop_recording_if_any(self):
+        pass
+
     async def preload(self, audio_resource):
         if audio_resource.startswith("https://") or audio_resource.startswith(
             "http://"
@@ -28,12 +46,14 @@ class Sound(object, metaclass=abc.ABCMeta):
                     preloaded_list.append(preloaded_file)
         await self.stop_playing()
         for filename in preloaded_list:
+            if self.suspended:
+                break
             await self.start_playing_preloaded(filename)
             await self.wait_until_done(event)
 
     async def start_playing(self, audio_resource):
         preloaded = await self.preload(audio_resource)
-        if preloaded is not None:
+        if preloaded is not None and not self.suspended:
             await self.start_playing_preloaded(preloaded)
 
     @abc.abstractmethod

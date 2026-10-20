@@ -1,0 +1,22 @@
+// Shairport Sync configuration for Pynab (AirPlay 1 only).
+// Generated from nabairplay/shairport-sync.conf.in by install-airplay.sh.
+general =
+{
+  name = "Nabaztag";
+  output_backend = "alsa";
+  // no control/metadata interface is enabled: nothing is exposed besides AirPlay
+};
+
+alsa =
+{
+  output_device = "@ALSA_DEVICE@";
+};
+
+sessioncontrol =
+{
+  run_this_before_play_begins = "@ROOT_DIR@/nabairplay/airplay-on.sh";
+  run_this_after_play_ends = "@ROOT_DIR@/nabairplay/airplay-off.sh";
+  wait_for_completion = "yes";
+  allow_session_interruption = "yes";
+  session_timeout = 20;
+};

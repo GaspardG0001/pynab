@@ -36,6 +36,8 @@ class SoundVirtual(Sound):
             self.nabio_virtual.update_rabbit()
 
     async def start_playing_preloaded(self, filename):
+        if self.suspended:
+            return
         await self.stop_playing()
         self.currently_playing = True
         self.sound_file = filename

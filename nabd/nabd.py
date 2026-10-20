@@ -845,6 +845,28 @@ class Nabd:
         )
         return None
 
+    async def process_airplay_packet(
+        self, packet: AnyPacket, writer: asyncio.StreamWriter
+    ):
+        """Suspend (on) or resume (off) Pynab audio during AirPlay sessions"""
+        state = packet.get("state")
+        if state == "on":
+            logging.info("AirPlay session started, suspending sound")
+            await self.nabio.sound.suspend()
+        elif state == "off":
+            logging.info("AirPlay session ended, resuming sound")
+            await self.nabio.sound.resume()
+        else:
+            self.write_response_packet(
+                packet,
+                status_error_malformed_packet(
+                    "airplay packet requires state 'on' or 'off'"
+                ),
+                writer,
+            )
+            return
+        self.write_response_packet(packet, STATUS_OK, writer)
+
     async def process_os_shutdown_packet(
         self, packet: AnyPacket, writer: asyncio.StreamWriter
     ):
@@ -878,6 +900,7 @@ class Nabd:
             "test": self.process_test_packet,
             "rfid_write": self.process_rfid_write_packet,
             "shutdown": self.process_os_shutdown_packet,
+            "airplay": self.process_airplay_packet,
         }
         if packet["type"] in processors:
             await processors[packet["type"]](packet, writer)

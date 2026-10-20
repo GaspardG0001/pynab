@@ -255,6 +255,10 @@ class SoundAlsa(Sound):  # pragma: no cover
 
     async def start_recording(self, stream_cb):
         logging.debug("SoundAlsa: start recording")
+        if self.suspended:
+            logging.warning("SoundAlsa: recording refused (AirPlay active)")
+            stream_cb(b"", True)
+            return
         await self.stop_playing()
         self.currently_recording = True
         if logging.getLogger(__name__).isEnabledFor(logging.DEBUG):
@@ -297,6 +301,10 @@ class SoundAlsa(Sound):  # pragma: no cover
             self.currently_recording = False
             if inp:
                 inp.close()
+
+    async def stop_recording_if_any(self):
+        if self.currently_recording:
+            await self.stop_recording()
 
     async def stop_recording(self):
         logging.debug("SoundAlsa: stop recording")
@@ -361,6 +369,8 @@ class SoundAlsa(Sound):  # pragma: no cover
         return True
 
     async def start_playing_preloaded(self, filename):
+        if self.suspended:
+            return
         await self.stop_playing()
         self.currently_playing = True
         self.future = asyncio.get_event_loop().run_in_executor(
