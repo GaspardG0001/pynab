@@ -131,6 +131,7 @@ else:
         signature: CommandSequenceItem
         expiration: datetime.datetime
         cancelable: bool
+        stop_airplay: bool
 
     class CancelPacket(TypedDict):
         type: Literal["cancel"]

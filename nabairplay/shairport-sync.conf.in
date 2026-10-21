@@ -5,6 +5,8 @@ general =
   name = "Nabaztag";
   output_backend = "alsa";
   default_airplay_volume = 0.0;
+  ignore_volume_control = "yes";
+  volume_max_db = 0.0;
   // no control/metadata interface is enabled: nothing is exposed besides AirPlay
 };
 
