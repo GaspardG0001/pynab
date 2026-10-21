@@ -15,8 +15,8 @@ alsa =
 
 sessioncontrol =
 {
-  run_this_before_play_begins = "@ROOT_DIR@/nabairplay/airplay-on.sh";
-  run_this_after_play_ends = "@ROOT_DIR@/nabairplay/airplay-off.sh";
+  run_this_before_play_begins = "/bin/bash @ROOT_DIR@/nabairplay/airplay-on.sh";
+  run_this_after_play_ends = "/bin/bash @ROOT_DIR@/nabairplay/airplay-off.sh";
   wait_for_completion = "yes";
   allow_session_interruption = "yes";
   session_timeout = 20;

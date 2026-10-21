@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-exec "$(dirname "$(readlink -f "$0")")/airplay-hook.sh" off
+exec /bin/bash "$(dirname "$(readlink -f "$0")")/airplay-hook.sh" off

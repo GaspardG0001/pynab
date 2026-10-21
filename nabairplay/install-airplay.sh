@@ -54,7 +54,16 @@ sed -e "s|@ALSA_DEVICE@|plughw:CARD=${card}|" -e "s|@ROOT_DIR@|${root_dir}|g" \
 mkdir -p "${dropin_dir}"
 sed -e "s|@ROOT_DIR@|${root_dir}|g" \
   "${root_dir}/nabairplay/shairport-sync-pynab.conf" > "${dropin_dir}/pynab.conf"
+# Scripts may come from a Windows checkout: strip any CR and make them runnable.
+sed -i "s/\r$//" "${root_dir}"/nabairplay/*.sh "${conf}" "${dropin_dir}/pynab.conf"
 chmod +x "${root_dir}"/nabairplay/*.sh
+# Shairport Sync runs as its own user: it must be able to reach the hooks.
+sh_user="$(systemctl show -p User --value shairport-sync 2>/dev/null || true)"
+sh_user="${sh_user:-shairport-sync}"
+if id "${sh_user}" >/dev/null 2>&1 && \
+   ! runuser -u "${sh_user}" -- test -r "${root_dir}/nabairplay/airplay-hook.sh"; then
+  echo "Warning: user ${sh_user} cannot read ${root_dir}/nabairplay; AirPlay hooks will fail." >&2
+fi
 
 echo "Enabling services"
 systemctl enable shairport-sync
