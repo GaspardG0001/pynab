@@ -47,6 +47,7 @@ from nabcommon.typing import (
     TestPacket,
 )
 
+from .choreography import ChoreographyInterpreter
 from .ears import Ears
 from .leds import Led
 from .nabio import NabIO
@@ -124,6 +125,9 @@ class Nabd:
         self._ears_moved_task: Optional[asyncio.Future] = None
         self.playing_cancelable = False
         self.playing_request_id: Optional[str] = None
+        self.airplay_active = False
+        self.airplay_choreography: Optional[ChoreographyInterpreter] = None
+        self.airplay_lock = asyncio.Lock()
         Nabd.leds_boot(self.nabio, 2)
         if self.nabio.has_sound_input():
             from . import i18n
@@ -981,13 +985,7 @@ class Nabd:
     ):
         """Suspend (on) or resume (off) Pynab audio during AirPlay sessions"""
         state = packet.get("state")
-        if state == "on":
-            logging.info("AirPlay session started, suspending sound")
-            await self.nabio.sound.suspend()
-        elif state == "off":
-            logging.info("AirPlay session ended, resuming sound")
-            await self.nabio.sound.resume()
-        else:
+        if state not in ("on", "off"):
             self.write_response_packet(
                 packet,
                 status_error_malformed_packet(
@@ -996,7 +994,45 @@ class Nabd:
                 writer,
             )
             return
+        async with self.airplay_lock:
+            if state == "on":
+                if not self.airplay_active:
+                    logging.info("AirPlay session started, suspending sound")
+                    await self.nabio.sound.stop_recording_if_any()
+                    await self._play_airplay_feedback(
+                        "choreographies/1noteC5.mp3"
+                    )
+                    await self.nabio.sound.suspend()
+                    await self.nabio.move_ears_with_leds(
+                        (0, 128, 255), 0, 10
+                    )
+                    self.airplay_choreography = ChoreographyInterpreter(
+                        self.nabio.leds, self.nabio.ears, self.nabio.sound
+                    )
+                    await self.airplay_choreography.start(
+                        ChoreographyInterpreter.STREAMING_URN
+                    )
+                    self.airplay_active = True
+            else:
+                was_active = self.airplay_active
+                if self.airplay_active:
+                    logging.info("AirPlay session ended, resuming sound")
+                    if self.airplay_choreography is not None:
+                        await self.airplay_choreography.stop()
+                        self.airplay_choreography = None
+                    await self.nabio.move_ears_with_leds(
+                        (255, 64, 0), 0, 0
+                    )
+                    self.airplay_active = False
+                await self.nabio.sound.resume()
+                if was_active:
+                    await self._play_airplay_feedback(
+                        "choreographies/1noteA4.mp3"
+                    )
         self.write_response_packet(packet, STATUS_OK, writer)
+
+    async def _play_airplay_feedback(self, sound: str):
+        await self.nabio.sound.play_list([sound], False)
 
     async def process_os_shutdown_packet(
         self, packet: AnyPacket, writer: asyncio.StreamWriter
