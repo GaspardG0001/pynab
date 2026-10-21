@@ -198,6 +198,7 @@ class NabClockd(nabservice.NabService):
                                         self.ignore_next_idle_packet = True
                                         packet = (
                                             '{"type":"message",'
+                                            '"stop_airplay":true,'
                                             '"body":[{"audio":["sleep/*.mp3"],'
                                             '"choreography":null}],'
                                             '"request_id":"sleep_sound"}\r\n'

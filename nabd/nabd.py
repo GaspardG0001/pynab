@@ -396,6 +396,8 @@ class Nabd:
                         item = self.idle_queue.popleft()
                 elif item[0]["type"] == "message":
                     await self.set_state(State.PLAYING)
+                    if item[0].get("stop_airplay") is True:
+                        await self._set_airplay_service("stop")
                     await self.perform(item[0], item[1])
                     if len(self.idle_queue) == 0:
                         await self.set_state(State.IDLE)

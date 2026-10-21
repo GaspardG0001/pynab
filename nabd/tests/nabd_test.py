@@ -227,6 +227,40 @@ class TestNabd(TestNabdBase):
             s1.close()
             s2.close()
 
+    def test_sleep_message_stops_airplay_before_playing(self):
+        events = []
+
+        async def stop_airplay(action):
+            events.append(("airplay", action))
+
+        async def perform(packet, writer):
+            events.append(("play", packet["request_id"]))
+            self.nabd.write_response_cancelable(packet, writer)
+
+        self.nabd._set_airplay_service = stop_airplay
+        self.nabd.perform = perform
+
+        s = self.service_socket()
+        try:
+            s.readline()  # state packet
+            s.write(
+                b'{"type":"message","stop_airplay":true,'
+                b'"body":[{"audio":["sleep/*.mp3"],"choreography":null}],'
+                b'"request_id":"sleep_sound"}\r\n'
+            )
+            while True:
+                packet = json.loads(s.readline().decode("utf8"))
+                if (
+                    packet.get("type") == "response"
+                    and packet.get("request_id") == "sleep_sound"
+                ):
+                    break
+            self.assertEqual(
+                events, [("airplay", "stop"), ("play", "sleep_sound")]
+            )
+        finally:
+            s.close()
+
     def test_info_id_required(self):
         s1 = self.service_socket()
         try:

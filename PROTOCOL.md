@@ -154,6 +154,9 @@ Messages à faire diffuser par le lapin.
 
 Le slot `"request_id"` est optionnel et est retourné dans la réponse.
 
+Le slot `"stop_airplay"` est optionnel. S'il vaut `true`, AirPlay est arrêté
+avant la lecture du message.
+
 Le slot `"expiration"` est optionnel et indique la date d'expiration de la commande. La commande est jouée quand le lapin est disponible (pas endormi, pas en train de faire autre chose) et si la date d'expiration n'est pas atteinte.
 
 Le slot `"signature"` est optionnel et est du type :
@@ -313,4 +316,3 @@ Utilisés en interne pour la configuration des tags RFID.
 ## Paquets `gestalt`, `test`, `config-update` et `shutdown`
 
 Utilisés en interne pour la communication entre le site web et nabd.
-
