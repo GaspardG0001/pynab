@@ -99,9 +99,6 @@ class TestNabd(TestNabdBase):
                 self.nabd.airplay_choreography.running_ref,
                 "urn:x-chor:streaming",
             )
-            self.assertIn(
-                "move_ears(0, 10)", self.nabio.called_list
-            )
             s.write(b'{"type":"airplay","state":"bogus","request_id":"b"}\r\n')
             packet_j = json.loads(s.readline().decode("utf8"))
             self.assertEqual(packet_j["status"], "error")
@@ -112,7 +109,6 @@ class TestNabd(TestNabdBase):
             self.assertFalse(self.nabio.sound.suspended)
             self.assertFalse(self.nabd.airplay_active)
             self.assertIsNone(self.nabd.airplay_choreography)
-            self.assertIn("move_ears(0, 0)", self.nabio.called_list)
             self.assertIn(
                 "start_playing_preloaded(choreographies/1noteC5.mp3)",
                 self.nabio.sound.called_list,

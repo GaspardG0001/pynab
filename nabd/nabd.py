@@ -1004,7 +1004,7 @@ class Nabd:
                     )
                     await self.nabio.sound.suspend()
                     await self.nabio.move_ears_with_leds(
-                        (0, 128, 255), 0, 10
+                        (255, 0, 0), 0, 0
                     )
                     self.airplay_choreography = ChoreographyInterpreter(
                         self.nabio.leds, self.nabio.ears, self.nabio.sound
@@ -1020,9 +1020,7 @@ class Nabd:
                     if self.airplay_choreography is not None:
                         await self.airplay_choreography.stop()
                         self.airplay_choreography = None
-                    await self.nabio.move_ears_with_leds(
-                        (255, 64, 0), 0, 0
-                    )
+                    self.nabio.set_leds(None, None, None, None, None)
                     self.airplay_active = False
                 await self.nabio.sound.resume()
                 if was_active:

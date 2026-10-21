@@ -5,7 +5,7 @@ Receives AirPlay 1 audio on the Nabaztag using [Shairport Sync](https://github.c
 ## How it works
 - Shairport Sync advertises a receiver named `Nabaztag` and plays on the Tag:Tag ALSA card.
 - At session start/end, Shairport runs `airplay-on.sh` / `airplay-off.sh`, which send `{"type":"airplay","state":"on|off"}` to `nabd` (localhost:10543).
-- On `on`, `nabd` stops the current sound, plays a short chime, and refuses new playback/recording until `off`. Interrupted sounds are not replayed; there is no mixing. The streaming LED and ear animation runs for the duration of the AirPlay session; a different chime and ear movement mark the end.
+- On `on`, `nabd` stops the current sound, plays a short chime, and refuses new playback/recording until `off`. Interrupted sounds are not replayed; there is no mixing. The radio's streaming LED and ear choreography runs for the duration of the AirPlay session. On `off`, the choreography stops, LEDs turn off, and a different chime plays.
 - When the rabbit goes to sleep, `nabd` stops the Shairport Sync service; it starts it again on wake only if AirPlay is enabled in systemd.
 - If Shairport crashes, systemd's `ExecStopPost` sends `off`. A `nabd` restart always starts with sound enabled.
 - If Shairport is absent or disabled, Pynab behaves exactly as before.
