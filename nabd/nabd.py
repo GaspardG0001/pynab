@@ -250,10 +250,35 @@ class Nabd:
                 logging.error("Timed out checking whether AirPlay is enabled")
                 return
             except OSError as error:
-                logging.error("Could not check whether AirPlay is enabled: %s", error)
+                logging.error(
+                    "Could not check whether AirPlay is enabled: %s", error
+                )
                 return
             if enabled.returncode != 0:
                 logging.info("AirPlay is disabled; not starting it on wake")
+                return
+            active = await asyncio.create_subprocess_exec(
+                "systemctl",
+                "is-active",
+                "--quiet",
+                "shairport-sync",
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            try:
+                await asyncio.wait_for(active.wait(), timeout=5)
+            except asyncio.TimeoutError:
+                active.kill()
+                await active.wait()
+                logging.error("Timed out checking whether AirPlay is active")
+                return
+            except OSError as error:
+                logging.error(
+                    "Could not check whether AirPlay is active: %s", error
+                )
+                return
+            if active.returncode == 0:
+                logging.debug("Shairport Sync is already running")
                 return
 
         try:
@@ -286,6 +311,10 @@ class Nabd:
         else:
             state = "stopped" if action == "stop" else "started"
             logging.info("Shairport Sync %s successfully", state)
+            if action == "start":
+                # Type=simple units can be considered active before mDNS
+                # registration has completed.
+                await asyncio.sleep(2)
 
     async def idle_worker_loop(self):
         """
@@ -685,6 +714,10 @@ class Nabd:
     ):
         """Process a wakeup packet"""
         assert packet["type"] == "wakeup"
+        if self.state == State.ASLEEP:
+            # Do not acknowledge the wake until AirPlay has had time to become
+            # discoverable; callers may try to connect as soon as we respond.
+            await self._set_airplay_service("start")
         self.write_response_packet(packet, STATUS_OK, writer)
         if self.state == State.ASLEEP:
             await self.transition_to(State.IDLE)
